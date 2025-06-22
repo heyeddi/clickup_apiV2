@@ -104,7 +104,7 @@ class Client:
             print(f"An error occurred while fetching folder lists: {e}")
             return None
 
-    def get_list_tasks(self, list_id, format="long", **kwargs):
+    def get_list_tasks(self, list_id, format="long", debug=False, **kwargs):
         url = f"{self.server}/api/v2/list/{list_id}/task"
         headers = {
             "Content-Type": "application/json",
@@ -119,10 +119,31 @@ class Client:
             else:
                 params[key] = value
 
+        if debug:
+            print(f"URL: {url}")
+            print(f"Parameters: {params}")
+
         try:
             response = requests.get(url, headers=headers, params=params)
+
+            if debug:
+                print(f"Actual URL called: {response.url}")
+                print(f"Request headers: {dict(response.request.headers)}")
+
             response.raise_for_status()
+
+            if debug:
+                print(f"Response status: {response.status_code}")
+                print(f"Response headers: {dict(response.headers)}")
+
             data = response.json()
+
+            if debug:
+                tasks = data.get('tasks', [])
+                subtask_count = sum(1 for task in tasks if task.get('parent'))
+                parent_count = len(tasks) - subtask_count
+                print(f"Number of tasks returned: {len(tasks)}")
+                print(f"Parent tasks: {parent_count}, Subtasks: {subtask_count}")
             if format == "short":
                 tasks = [{"id": task["id"], "name": task["name"], "status": task.get("status", {}).get("status")} for task in data.get("tasks", [])]
                 return tasks
