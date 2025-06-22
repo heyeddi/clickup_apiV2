@@ -110,8 +110,17 @@ class Client:
             "Content-Type": "application/json",
             "Authorization": self.api_token
         }
+
+        # Convert Python boolean values to lowercase strings for ClickUp API compatibility
+        params = {}
+        for key, value in kwargs.items():
+            if isinstance(value, bool):
+                params[key] = str(value).lower()
+            else:
+                params[key] = value
+
         try:
-            response = requests.get(url, headers=headers, params=kwargs)
+            response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
             if format == "short":
