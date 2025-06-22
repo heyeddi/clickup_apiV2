@@ -105,52 +105,92 @@ class Client:
             return None
 
     def get_list_tasks(self, list_id, format="long", debug=False, **kwargs):
+        """
+        Get tasks from a ClickUp list.
+
+        Args:
+            list_id (str): The ID of the list to fetch tasks from
+            format (str): Return format - "long" for full data, "short" for simplified
+            debug (bool): Enable debug output
+            **kwargs: Additional parameters (subtasks, include_closed, etc.)
+
+        Returns:
+            dict/list: Task data in requested format, or None if error
+        """
         url = f"{self.server}/api/v2/list/{list_id}/task"
         headers = {
             "Content-Type": "application/json",
             "Authorization": self.api_token
         }
 
-        # Convert Python boolean values to lowercase strings for ClickUp API compatibility
+        # Convert Python booleans to lowercase strings for ClickUp API compatibility
+        params = self._prepare_api_params(kwargs)
+
+        if debug:
+            self._debug_request(url, params)
+
+        try:
+            response = requests.get(url, headers=headers, params=params)
+
+            if debug:
+                self._debug_response(response)
+
+            response.raise_for_status()
+            data = response.json()
+
+            if debug:
+                self._debug_task_data(data)
+
+            return self._format_task_response(data, format)
+
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred while fetching tasks: {e}")
+            return None
+
+    def _prepare_api_params(self, kwargs):
+        """Convert parameters for ClickUp API compatibility."""
         params = {}
         for key, value in kwargs.items():
             if isinstance(value, bool):
                 params[key] = str(value).lower()
             else:
                 params[key] = value
+        return params
 
-        if debug:
-            print(f"URL: {url}")
-            print(f"Parameters: {params}")
+    def _debug_request(self, url, params):
+        """Print debug information for the request."""
+        print(f"URL: {url}")
+        print(f"Parameters: {params}")
 
-        try:
-            response = requests.get(url, headers=headers, params=params)
+    def _debug_response(self, response):
+        """Print debug information for the response."""
+        print(f"Actual URL called: {response.url}")
+        print(f"Request headers: {dict(response.request.headers)}")
+        print(f"Response status: {response.status_code}")
+        print(f"Response headers: {dict(response.headers)}")
 
-            if debug:
-                print(f"Actual URL called: {response.url}")
-                print(f"Request headers: {dict(response.request.headers)}")
+    def _debug_task_data(self, data):
+        """Print debug information about the task data."""
+        tasks = data.get('tasks', [])
+        subtask_count = sum(1 for task in tasks if task.get('parent'))
+        parent_count = len(tasks) - subtask_count
 
-            response.raise_for_status()
+        print(f"Number of tasks returned: {len(tasks)}")
+        print(f"Parent tasks: {parent_count}, Subtasks: {subtask_count}")
 
-            if debug:
-                print(f"Response status: {response.status_code}")
-                print(f"Response headers: {dict(response.headers)}")
-
-            data = response.json()
-
-            if debug:
-                tasks = data.get('tasks', [])
-                subtask_count = sum(1 for task in tasks if task.get('parent'))
-                parent_count = len(tasks) - subtask_count
-                print(f"Number of tasks returned: {len(tasks)}")
-                print(f"Parent tasks: {parent_count}, Subtasks: {subtask_count}")
-            if format == "short":
-                tasks = [{"id": task["id"], "name": task["name"], "status": task.get("status", {}).get("status")} for task in data.get("tasks", [])]
-                return tasks
-            return data
-        except requests.exceptions.RequestException as e:
-            print(f"An error occurred while fetching tasks: {e}")
-            return None
+    def _format_task_response(self, data, format):
+        """Format the task response based on requested format."""
+        if format == "short":
+            tasks = data.get("tasks", [])
+            return [
+                {
+                    "id": task["id"],
+                    "name": task["name"],
+                    "status": task.get("status", {}).get("status")
+                }
+                for task in tasks
+            ]
+        return data
 
     def get_list_custom_fields(self, list_id):
         url = f"{self.server}/api/v2/list/{list_id}/field"
