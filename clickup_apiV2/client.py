@@ -6,7 +6,7 @@ class Client:
         self.api_token = api_token
 
 
-    def get_team_id(self,response="full"):
+    def get_team_id(self,format="full"):
         headers = {
             "Content-Type": "application/json",
             "Authorization": self.api_token
@@ -23,7 +23,7 @@ class Client:
             data = response.json()
 
             # Return the team ID(s) from the response
-            if response == "short":
+            if format == "short":
                 team_ids = [team['id'] for team in data.get('teams', [])]
                 return team_ids
             else:
@@ -32,7 +32,7 @@ class Client:
             print(f"An error occurred: {e}")
             return None
 
-    def get_workspaces(self, team_id,response="full"):
+    def get_workspaces(self, team_id, format="full"):
         url = f"{self.server}/api/v2/team/{team_id}/space"
         headers = {
             "Content-Type": "application/json",
@@ -47,7 +47,7 @@ class Client:
             # Parse the JSON response
             data = response.json()
             # Extract and return the workspace (space) details
-            if response == "short":
+            if format == "short":
                 workspaces = [{"id": space["id"], "name": space["name"]} for space in data.get("spaces", [])]
                 return workspaces
             return data.get("spaces")
