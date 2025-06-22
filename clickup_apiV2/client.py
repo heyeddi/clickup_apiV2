@@ -204,9 +204,11 @@ class Client:
             "Content-Type": "application/json",
             "Authorization": self.api_token
         }
-        data = {"name":task_name,
-                   }
-        data = data | payload
+
+        if payload:
+            data = payload
+        else:
+            data = {"name":task_name}
 
         try:
             # Make the PUT request with data in the JSON payload
