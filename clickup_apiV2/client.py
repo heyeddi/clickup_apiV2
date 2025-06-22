@@ -114,7 +114,7 @@ class Client:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
-            if format == "short"
+            if format == "short":
                 tasks = [{"id": task["id"], "name": task["name"], "status": task.get("status", {}).get("status")} for task in data.get("tasks", [])]
                 return tasks
             return data
