@@ -104,7 +104,7 @@ class Client:
             print(f"An error occurred while fetching folder lists: {e}")
             return None
 
-    def get_list_tasks(self, list_id):
+    def get_list_tasks(self, list_id, format="long"):
         url = f"{self.server}/api/v2/list/{list_id}/task"
         headers = {
             "Content-Type": "application/json",
@@ -114,8 +114,10 @@ class Client:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
-            tasks = [{"id": task["id"], "name": task["name"], "status": task.get("status", {}).get("status")} for task in data.get("tasks", [])]
-            return tasks, data
+            if format == "short"
+                tasks = [{"id": task["id"], "name": task["name"], "status": task.get("status", {}).get("status")} for task in data.get("tasks", [])]
+                return tasks
+            return data
         except requests.exceptions.RequestException as e:
             print(f"An error occurred while fetching tasks: {e}")
             return None
