@@ -538,6 +538,99 @@ class TestSubtasks:
                 print(f"First 5 extra IDs: {list(extra_in_client)[:5]}")
 
 
+    def test_pagination_retrieves_all_tasks(self, client, test_list_id):
+        """Test that pagination correctly retrieves all tasks when there are multiple pages."""
+        print("\n=== TESTING PAGINATION RETRIEVES ALL TASKS ===")
+
+        # First, get tasks with pagination (our improved method)
+        response_with_pagination = client.get_list_tasks(
+            test_list_id,
+            subtasks=True,
+            include_closed=True,
+            debug=True
+        )
+
+        assert response_with_pagination is not None, "Paginated call should return data"
+        tasks_paginated = response_with_pagination.get('tasks', [])
+
+        # Count subtasks vs parent tasks
+        subtasks_paginated = sum(1 for task in tasks_paginated if task.get('parent'))
+        parents_paginated = len(tasks_paginated) - subtasks_paginated
+
+        print(f"Paginated method: {len(tasks_paginated)} total tasks")
+        print(f"  - Parent tasks: {parents_paginated}")
+        print(f"  - Subtasks: {subtasks_paginated}")
+
+        # Verify we got a reasonable number of tasks (should be > 42 if pagination is working)
+        assert len(tasks_paginated) >= 42, f"Should retrieve at least 42 tasks, got {len(tasks_paginated)}"
+
+        # If we have subtasks, verify they have parent relationships
+        if subtasks_paginated > 0:
+            print(f"✅ Successfully retrieved {subtasks_paginated} subtasks through pagination")
+
+            # Check that parent IDs exist in the task list
+            task_ids = {task['id'] for task in tasks_paginated}
+            parent_ids_found = {task['parent'] for task in tasks_paginated if task.get('parent')}
+
+            # At least some parent IDs should exist in our task list
+            valid_parents = parent_ids_found.intersection(task_ids)
+            print(f"Found {len(valid_parents)} valid parent-child relationships")
+
+        # Test short format with pagination
+        short_response = client.get_list_tasks(
+            test_list_id,
+            format="short",
+            subtasks=True,
+            include_closed=True
+        )
+
+        assert isinstance(short_response, list), "Short format should return a list"
+        assert len(short_response) == len(tasks_paginated), "Short format should have same count as long format"
+
+        print(f"✅ Pagination test completed successfully")
+
+
+    def test_pagination_improvement_over_direct_url(self, client, test_list_id):
+        """Test that our pagination implementation gets more tasks than the direct URL."""
+        print("\n=== TESTING PAGINATION IMPROVEMENT OVER DIRECT URL ===")
+
+        import requests
+
+        # Test the original direct URL approach (no pagination)
+        direct_url = f"https://api.clickup.com/api/v2/list/{test_list_id}/task?subtasks=true&include_closed=true"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": client.api_token
+        }
+
+        response = requests.get(direct_url, headers=headers)
+        direct_data = response.json()
+        direct_count = len(direct_data.get('tasks', []))
+        direct_subtasks = sum(1 for task in direct_data.get('tasks', []) if task.get('parent'))
+
+        print(f"Direct URL (no pagination): {direct_count} tasks, {direct_subtasks} subtasks")
+
+        # Test our paginated client method
+        paginated_data = client.get_list_tasks(test_list_id, subtasks=True, include_closed=True)
+        paginated_count = len(paginated_data.get('tasks', []))
+        paginated_subtasks = sum(1 for task in paginated_data.get('tasks', []) if task.get('parent'))
+
+        print(f"Paginated method: {paginated_count} tasks, {paginated_subtasks} subtasks")
+
+        # Verify improvement
+        if paginated_count > direct_count:
+            print(f"✅ IMPROVEMENT: Pagination retrieves {paginated_count - direct_count} more tasks!")
+            print(f"✅ IMPROVEMENT: Pagination retrieves {paginated_subtasks - direct_subtasks} more subtasks!")
+        elif paginated_count == direct_count:
+            print("✅ EQUIVALENT: Both methods return the same number of tasks")
+        else:
+            print("❌ REGRESSION: Pagination returns fewer tasks than direct URL")
+
+        # Our method should get at least as many tasks as the direct URL
+        assert paginated_count >= direct_count, f"Pagination should get at least as many tasks as direct URL"
+        assert paginated_subtasks >= direct_subtasks, f"Pagination should get at least as many subtasks"
+
+
 if __name__ == "__main__":
     # Example of how to run the test manually
     print("To run this test, set the following environment variables:")

@@ -106,7 +106,7 @@ class Client:
 
     def get_list_tasks(self, list_id, format="long", debug=False, **kwargs):
         """
-        Get tasks from a ClickUp list.
+        Get tasks from a ClickUp list with automatic pagination to retrieve all tasks.
 
         Args:
             list_id (str): The ID of the list to fetch tasks from
@@ -126,26 +126,58 @@ class Client:
         # Convert Python booleans to lowercase strings for ClickUp API compatibility
         params = self._prepare_api_params(kwargs)
 
+        # Collect all tasks across pages
+        all_tasks = []
+        page = 0
+
         if debug:
-            self._debug_request(url, params)
+            print(f"Starting pagination for list {list_id}")
 
-        try:
-            response = requests.get(url, headers=headers, params=params)
-
-            if debug:
-                self._debug_response(response)
-
-            response.raise_for_status()
-            data = response.json()
+        while True:
+            # Add page parameter for this request
+            current_params = params.copy()
+            current_params['page'] = page
 
             if debug:
-                self._debug_task_data(data)
+                self._debug_request(url, current_params, page)
 
-            return self._format_task_response(data, format)
+            try:
+                response = requests.get(url, headers=headers, params=current_params)
 
-        except requests.exceptions.RequestException as e:
-            print(f"An error occurred while fetching tasks: {e}")
-            return None
+                if debug and page == 0:
+                    self._debug_response(response)
+
+                response.raise_for_status()
+                data = response.json()
+
+                current_tasks = data.get('tasks', [])
+                all_tasks.extend(current_tasks)
+
+                if debug:
+                    print(f"Page {page}: Retrieved {len(current_tasks)} tasks")
+
+                # Check if we've reached the last page
+                is_last_page = data.get('last_page', True)
+                if is_last_page or len(current_tasks) == 0:
+                    break
+
+                page += 1
+
+            except requests.exceptions.RequestException as e:
+                print(f"An error occurred while fetching tasks (page {page}): {e}")
+                return None
+
+        # Create final response with all tasks
+        final_data = {
+            'tasks': all_tasks,
+            'last_page': True
+        }
+
+        if debug:
+            self._debug_task_data(final_data)
+            print(f"Total pages fetched: {page + 1}")
+
+        return self._format_task_response(final_data, format)
 
     def _prepare_api_params(self, kwargs):
         """Convert parameters for ClickUp API compatibility."""
@@ -157,9 +189,12 @@ class Client:
                 params[key] = value
         return params
 
-    def _debug_request(self, url, params):
+    def _debug_request(self, url, params, page=None):
         """Print debug information for the request."""
-        print(f"URL: {url}")
+        if page is not None:
+            print(f"URL: {url} (Page {page})")
+        else:
+            print(f"URL: {url}")
         print(f"Parameters: {params}")
 
     def _debug_response(self, response):
