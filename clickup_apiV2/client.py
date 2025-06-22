@@ -104,14 +104,14 @@ class Client:
             print(f"An error occurred while fetching folder lists: {e}")
             return None
 
-    def get_list_tasks(self, list_id, format="long"):
+    def get_list_tasks(self, list_id, format="long", **kwargs):
         url = f"{self.server}/api/v2/list/{list_id}/task"
         headers = {
             "Content-Type": "application/json",
             "Authorization": self.api_token
         }
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, params=kwargs)
             response.raise_for_status()
             data = response.json()
             if format == "short":
