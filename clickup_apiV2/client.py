@@ -46,11 +46,11 @@ class Client:
 
             # Parse the JSON response
             data = response.json()
-
             # Extract and return the workspace (space) details
             if response == "short":
                 workspaces = [{"id": space["id"], "name": space["name"]} for space in data.get("spaces", [])]
                 return workspaces
+            return data.get("spaces")
 
         except requests.exceptions.RequestException as e:
             print(f"An error occurred while fetching workspaces: {e}")
